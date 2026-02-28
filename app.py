@@ -157,8 +157,36 @@ def extract_from_pdf(pdf_bytes: bytes) -> list:
                 full_text += text + "\n"
                 all_lines.extend(text.split("\n"))
 
-        # Must contain HSN table
-        if "HSN_CODE" not in full_text and "HSN CODE" not in full_text:
+        # ── Detect invoice format ─────────────────────────────────────────────
+        # Two types of Aashirwad GST invoices exist in each folder:
+        #
+        # 1) DRAFT format  — starts with "AASHIRWAD GARMENTS", has [sku: …] tags,
+        #    uses "HSN_CODE" header. Contains line items we can parse.
+        #    May have an older/incorrect date.
+        #
+        # 2) FINAL format  — starts with "Please enter your own invoice number",
+        #    uses "HSN Quantity" header (no [sku:] tags), but has the CORRECT date.
+        #    We use this PDF only for its invoice date, not for line items.
+        #
+        # Strategy: final-format PDFs return a sentinel date-only record.
+        #           process_zip() uses these to override dates on all rows.
+
+        is_final_invoice = "Please enter your own invoice number" in full_text
+
+        if is_final_invoice:
+            # Extract only invoice_no and invoice_date for date correction
+            m = re.search(r"Invoice No[:\s]+([\w/]+)", full_text)
+            inv_no = m.group(1).strip() if m else ""
+            m = re.search(r"Invoice Date\s*[:\s]+([\d/\s]+)", full_text)
+            inv_date = m.group(1).strip().replace(" ", "") if m else ""
+            if inv_no and inv_date:
+                return [{"__date_only__": True,
+                         "Invoice No": inv_no,
+                         "Invoice Date": inv_date}]
+            return results
+
+        # Draft format: must have HSN_CODE table with [sku:] line items
+        if "HSN_CODE" not in full_text:
             return results
 
         # ── Seller ────────────────────────────────────────────────────────────
@@ -295,6 +323,7 @@ def extract_from_pdf(pdf_bytes: bytes) -> list:
                 "Total Amount":       total,
                 "Wrong Seller":       wrong_seller,
                 "Wrong Seller Reason": wrong_reason,
+                "Is Final Invoice":   is_final_invoice,
             })
             i += 1
 
@@ -317,11 +346,27 @@ def process_zip(zip_bytes: bytes) -> list:
             bar.progress((idx + 1) / total, text=f"Processing {idx+1}/{total} PDFs…")
         bar.empty()
 
+    # ── Build final-invoice date lookup ──────────────────────────────────────
+    # Sentinel records ({"__date_only__": True, ...}) come from final-format PDFs
+    # and carry the correct invoice date. Use them to override dates on all rows.
+    final_dates: dict = {}
+    real_data   = []
+    for row in all_data:
+        if row.get("__date_only__"):
+            final_dates[row["Invoice No"]] = row["Invoice Date"]
+        else:
+            real_data.append(row)
+
+    # Apply correct dates from final invoices
+    for row in real_data:
+        if row["Invoice No"] in final_dates:
+            row["Invoice Date"] = final_dates[row["Invoice No"]]
+
     # Deduplicate on (Invoice No, SKU Code)
     seen   = set()
     unique = []
-    for row in all_data:
-        if not row["SKU Code"] and not row["HSN Code"]:
+    for row in real_data:
+        if not row.get("SKU Code") and not row.get("HSN Code"):
             continue
         key = (row["Invoice No"], row["SKU Code"])
         if key not in seen:
