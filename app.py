@@ -624,13 +624,11 @@ if "invoice_data" in st.session_state:
 
     with ch2:
         st.markdown("**Registration Type Distribution**")
-        reg_chart = (
-            df["Registration Type"]
-            .value_counts()
-            .reset_index()
-            .rename(columns={"index": "Type", "Registration Type": "Count"})
-            .set_index("Type")
+        reg_series = df["Registration Type"].value_counts()
+        reg_chart = pd.DataFrame(
+            {"Count": reg_series.values}, index=reg_series.index
         )
+        reg_chart.index.name = "Type"
         st.bar_chart(reg_chart)
 
     # ── Downloads ─────────────────────────────────────────────────────────────
