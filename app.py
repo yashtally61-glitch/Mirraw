@@ -565,14 +565,14 @@ def render_data_tab(df_tab: pd.DataFrame, tab_key: str, excel_data: list):
             return str(v)
 
   styled = (
-    display_df.style
-    .map(_highlight_reg, subset=["Registration Type"])
-    .format({
-        "Taxable Amount":    _safe_fmt,
-        "GST Amount (IGST)": _safe_fmt,
-        "Total Amount":      _safe_fmt,
-    })
-)
+        display_df.style
+        .map(_highlight_reg, subset=["Registration Type"])
+        .format({
+            "Taxable Amount":    _safe_fmt,
+            "GST Amount (IGST)": _safe_fmt,
+            "Total Amount":      _safe_fmt,
+        })
+    )
     st.dataframe(styled, use_container_width=True, height=400)
 
     # Charts
@@ -761,8 +761,8 @@ if "invoice_data" in st.session_state:
             wrong_df = df_wrong[wrong_display_cols].reset_index(drop=True)
 
             styled_wrong = wrong_df.style.map(
-    _highlight_wrong, subset=["Seller GSTIN", "Wrong Seller Reason"]
-)
+                _highlight_wrong, subset=["Seller GSTIN", "Wrong Seller Reason"]
+            )
             st.dataframe(styled_wrong, use_container_width=True, height=350)
 
             # Download wrong seller invoices as CSV
