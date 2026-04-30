@@ -564,7 +564,7 @@ def render_data_tab(df_tab: pd.DataFrame, tab_key: str, excel_data: list):
         except Exception:
             return str(v)
 
-  styled = (
+    styled = (
         display_df.style
         .map(_highlight_reg, subset=["Registration Type"])
         .format({
@@ -625,7 +625,6 @@ def render_data_tab(df_tab: pd.DataFrame, tab_key: str, excel_data: list):
             use_container_width=True,
             key=f"csv_{tab_key}",
         )
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  SIDEBAR
